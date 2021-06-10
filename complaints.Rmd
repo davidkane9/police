@@ -16,8 +16,7 @@ library(tidyverse)
 # option like message = FALSE or include = FALSE.
 
 raw_data <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
-  select(officer_id, po_race, po_sex) %>% 
-  mutate(city = "Philadelphia")
+  select(officer_id) 
 ```
 
 
