@@ -1,0 +1,80 @@
+---
+title: "Police Complaints"
+author: "David Kane"
+date: "6/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+
+# It is somewhat sloppy to include a read_csv() command in the setup chunk.
+# Normally, we would just load libraries here. However, we have not learned
+# about the col_types argument to read_csv() yet, so we can't make the annoying
+# message go away unless we stick the call in a code chunk with a code chunk
+# option like message = FALSE or include = FALSE.
+
+raw_ph <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/philly_clean.csv") %>% 
+  select(officer_id) %>% 
+  mutate(city = "Philadelphia")
+
+raw_ch <- read_csv("https://raw.githubusercontent.com/Financial-Times/police-misconduct-complaints-analysis/main/output/chicago_clean.csv") %>% 
+  select(cr_id) %>% 
+  mutate(city = "Chicago") %>% 
+  rename(officer_id = cr_id)
+
+raw_data <- bind_rows(raw_ph, raw_ch)
+```
+
+
+```{r, clean_data}
+# First portion of the pipe is the same that we did on Monday. We want to know
+# how many complaints each office received.
+
+clean_data <- raw_data %>% 
+  group_by(city, officer_id) %>% 
+  summarise(total = n()) %>% 
+  
+  # We now want to know which percentile (out of 10) each office is in. We could
+  # split up this flow into separate pipes, or even separate R code chunks, but
+  # keeping it all together is convenient.
+  
+  mutate(compl_dec = ntile(total, 10)) %>% 
+  
+  # As you build a pipe, you want to look at the result after each step to make
+  # sure it does what you want. Only after it is working would you then assign
+  # the result to an object which you can use later.
+  
+  # For each decile, we want to know the total number of complaints for all the
+  # officers in that decile.
+  
+  group_by(city, compl_dec) %>% 
+  summarize(compl_total = sum(total)) %>% 
+  
+  # The graph needs total complaints as a percentage, which is easy to
+  # calculate. Then, we only keep around the variables we need for the plot.
+  
+  mutate(compl_perc = compl_total / sum(compl_total)) %>% 
+  select(city, compl_dec, compl_perc)
+```
+
+```{r, plot_data}
+# We could just have one giant pipe which goes directly into ggplot(), like we
+# do in the tutorials. There is nothing wrong with that approach, but it is
+# often easier to split your work up into separate parts, the better to make
+# sure that each part is doing what you want.
+
+clean_data %>% 
+  ggplot(aes(x = compl_dec, y = compl_perc)) +
+    geom_col() +
+    facet_wrap( ~ city) +
+    labs(title = "Distribution of Police Complaints in Philadelphia",
+         subtitle = "Most complained about officers account for a vastly\ndisproportionate percentage of the total complaints",
+         x = "Complaint Decile",
+         y = NULL,
+         caption = "Data from Financial Times") +
+    scale_x_continuous(breaks = 1:10) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) 
+```
+
